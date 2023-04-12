@@ -7,13 +7,13 @@ from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.operators.python import PythonOperator 
 from airflow.utils.dates import days_ago
 
-def _process_weather(ti):
+def _process_weather(ti, **kwargs):
     info = ti.xcom_pull("extract_data")
-    timestamp = info["dt"]
-    temp = info["main"]["temp"]
-    humidity = info["main"]["humidity"]
-    cloudiness = info["clouds"]["all"]
-    windSpeed = info["wind"]["speed"]
+    timestamp = info["current"]["dt"]
+    temp = info["current"]["temp"]
+    humidity = info["current"]["humidity"]
+    cloudiness = info["current"]["clouds"]
+    windSpeed = info["current"]["wind_speed"]
     logging.info(f"Time: {timestamp}. Temp: {temp}. Humidity: {humidity}. Cloudiness: {cloudiness}. WindSpeed: {windSpeed}.")
     return timestamp, temp, humidity, cloudiness, windSpeed
 
@@ -42,12 +42,11 @@ with DAG(dag_id = "weather", schedule = "@daily", start_date = days_ago(2)) as d
     extract_data = SimpleHttpOperator(
         task_id = "extract_data",
         http_conn_id = "weather_api_con",
-        endpoint = "data/2.5/weather",
-        data = {"appId": Variable.get("WEATHER_API_KEY"), "q": "Lviv"},
+        endpoint = "data/3.0/onecall",
+        data = {"appId": Variable.get("WEATHER_API_KEY"), "lat": 49.842957, "lon": 24.031111},
         method = "GET",
         response_filter = lambda x: json.loads(x.text),
-        log_response = True,
-        trigger_rule = 'none_failed'
+        log_response = True
     )
 
     process_data = PythonOperator(
@@ -65,8 +64,7 @@ with DAG(dag_id = "weather", schedule = "@daily", start_date = days_ago(2)) as d
             {{ti.xcom_pull(task_ids='process_data')[2]}},
             {{ti.xcom_pull(task_ids='process_data')[3]}},
             {{ti.xcom_pull(task_ids='process_data')[4]}});
-        """,
-        trigger_rule = 'none_failed'
+        """
     )
 
     create_table_postgres_task >> run_migrations_postgres_task >> extract_data >> process_data >> inject_data
