@@ -72,12 +72,13 @@ def process_city_weather_taskgroup(dag, parent_full_id, group_id, city):
             task_id = INJECT_WEATHER_DATA_TASK_ID,
             postgres_conn_id = "measurements_db",
             sql = f"""
-                INSERT INTO measurements (execution_time, temperature, humidity, cloudiness, windSpeed) VALUES
+                INSERT INTO measurements (execution_time, temperature, humidity, cloudiness, windSpeed, city) VALUES
                 (to_timestamp({{{{ti.xcom_pull(task_ids='{current_full_id}.{PROCESS_WEATHER_DATA_TASK_ID}')[0]}}}}),
                 {{{{ti.xcom_pull(task_ids='{current_full_id}.{PROCESS_WEATHER_DATA_TASK_ID}')[1]}}}},
                 {{{{ti.xcom_pull(task_ids='{current_full_id}.{PROCESS_WEATHER_DATA_TASK_ID}')[2]}}}},
                 {{{{ti.xcom_pull(task_ids='{current_full_id}.{PROCESS_WEATHER_DATA_TASK_ID}')[3]}}}},
-                {{{{ti.xcom_pull(task_ids='{current_full_id}.{PROCESS_WEATHER_DATA_TASK_ID}')[4]}}}});
+                {{{{ti.xcom_pull(task_ids='{current_full_id}.{PROCESS_WEATHER_DATA_TASK_ID}')[4]}}}},
+                '{city["name"]}');
             """
         )
 
